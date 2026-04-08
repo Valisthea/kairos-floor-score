@@ -11,6 +11,7 @@
     "test": "node dist/cli.js health"
   },
   "dependencies": { "commander": "^12.0.0" },
+  "devDependencies": { "typescript": "^5.4.0", "@types/node": "^20.0.0" },
   "author": "Valisthea <kairos-lab>",
   "license": "MIT",
   "repository": { "type": "git", "url": "https://github.com/Valisthea/kairos-floor-score" }
