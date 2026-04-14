@@ -13,6 +13,7 @@ import { detectRegime } from '../ml/regime.js';
 import { computeMicrostructureFeatures } from '../ml/microstructure.js';
 import { computeConfluence } from '../ml/confluence.js';
 import { fetchKlinesFromOnchainOS } from '../adapters/onchainos.js';
+import { fetchKlinesFromUniswap, fetchUniswapPoolMeta, feeTierToSpreadBps } from '../adapters/uniswap.js';
 import type { Kline, ScoreResult } from '../types.js';
 
 const DEFAULT_MODEL_PATH = resolve(
@@ -26,8 +27,9 @@ export const analyzeCommand = new Command('analyze')
   .option('--side <side>', 'Trade direction: long or short', 'long')
   .option('--klines <json>', 'Klines as JSON array of {o,h,l,c,v} objects')
   .option('--funding-rate <rate>', 'Current funding rate', parseFloat, 0)
-  .option('--source <source>', 'Data source: onchainos or manual', 'manual')
-  .option('--chain <chain>', 'Blockchain for onchainos queries', 'solana')
+  .option('--source <source>', 'Data source: manual | onchainos | uniswap', 'manual')
+  .option('--pool <address>', 'Uniswap V3 pool address (required for --source uniswap)')
+  .option('--chain <chain>', 'Chain for onchainos/uniswap queries (ethereum | polygon | base | arbitrum)', 'ethereum')
   .option('--model <path>', 'Path to GBDT model JSON', DEFAULT_MODEL_PATH)
   .option('--output <format>', 'Output format: json or text', 'json')
   .action(async (opts) => {
@@ -39,8 +41,26 @@ export const analyzeCommand = new Command('analyze')
         klines = JSON.parse(opts.klines) as Kline[];
       } else if (opts.source === 'onchainos') {
         klines = fetchKlinesFromOnchainOS(opts.symbol, opts.chain);
+      } else if (opts.source === 'uniswap') {
+        if (!opts.pool) {
+          console.error('Error: --pool <address> is required with --source uniswap');
+          console.error('  Example: --pool 0x8ad599c3a0ff1de082011efddc58f1908eb6e6d8 --chain ethereum');
+          process.exit(1);
+        }
+        klines = fetchKlinesFromUniswap(opts.pool, opts.chain);
+
+        // Enrich context with pool metadata when available
+        const poolMeta = fetchUniswapPoolMeta(opts.pool, opts.chain);
+        if (poolMeta) {
+          const spreadBps = feeTierToSpreadBps(poolMeta.feeTier);
+          process.stderr.write(
+            `[kairos] Uniswap V3 pool ${opts.pool} — ` +
+            `${poolMeta.token0}/${poolMeta.token1} · ` +
+            `fee=${spreadBps}bps · chain=${opts.chain}\n`,
+          );
+        }
       } else {
-        console.error('Error: provide --klines JSON or use --source onchainos');
+        console.error('Error: provide --klines JSON or use --source onchainos|uniswap');
         process.exit(1);
       }
 

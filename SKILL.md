@@ -7,11 +7,13 @@ description: >
   recommendation backed by a gradient-boosted decision tree trained on real trade data.
   Trigger on: trade scoring, should I buy/sell, market analysis, regime detection,
   risk assessment, trade evaluation, entry quality, setup scoring, confluence check,
-  microstructure analysis, liquidity check, VPIN, order flow.
+  microstructure analysis, liquidity check, VPIN, order flow, Uniswap pool analysis,
+  Uniswap V3, score this pool, DEX trade scoring, AMM liquidity, pool depth check,
+  Uniswap entry quality, ethereum pool, polygon pool, base pool, arbitrum pool.
 license: MIT
 metadata:
   author: kairos-lab
-  version: "1.0.0"
+  version: "1.1.0"
   hackathon: "OKX Build X Hackathon April 2026"
   agent:
     requires:
@@ -101,16 +103,42 @@ The regime classifier identifies 5 states: `trending_up`, `trending_down`, `rang
 - **Kyle Lambda high**: Thin liquidity, expect slippage
 - **Order Imbalance > 0.3**: Strong directional pressure
 
+## Uniswap V3 Integration
+
+Score a trade directly from a Uniswap V3 pool — no manual candle data needed:
+
+```bash
+# ETH-USDC 0.30% pool on Ethereum
+kairos-floor-score analyze \
+  --symbol ETH-USDC \
+  --side long \
+  --source uniswap \
+  --pool 0x8ad599c3a0ff1de082011efddc58f1908eb6e6d8 \
+  --chain ethereum
+
+# Any pool on Polygon, Base, Arbitrum, Optimism
+kairos-floor-score analyze \
+  --symbol MATIC-USDC \
+  --side long \
+  --source uniswap \
+  --pool <pool-address> \
+  --chain polygon
+```
+
+The Uniswap adapter fetches swap-aggregated OHLCV candles via `onchainos uniswap klines`, reads pool metadata (fee tier, token pair), and passes the data through the full 5-stage scoring pipeline.
+
+Supported chains: `ethereum`, `polygon`, `base`, `arbitrum`, `optimism`
+
 ## Integration with OKX Onchain OS
 
-If `onchainos` CLI is installed, data can be fetched directly:
+If `onchainos` CLI is installed, data can be fetched directly from any supported chain:
 
 ```bash
 kairos-floor-score analyze \
   --symbol BTC-USDT \
   --side long \
   --source onchainos \
-  --chain solana
+  --chain ethereum
 ```
 
 ## Agent Workflow
